@@ -1,0 +1,9 @@
+<items>
+    <item name="Youless" url="#youless" image="/youless_images/icon.png">
+        <subitem>
+            <name>Discovered devices</name>
+            <url>/youless_devices_view</url>
+            <description>Use this page to view discovered devices. This page can also be used to add the device to the HouseAgent database.</description>
+        </subitem>
+    </item>
+</items>
