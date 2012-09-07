@@ -8,7 +8,8 @@ import ConfigParser
 from houseagent.plugins import pluginapi
 from twisted.internet import reactor, defer
 from twisted.internet.task import LoopingCall
-from twisted.python import log
+from houseagent.plugins.pluginapi import Logging
+
 
 # Platform specific imports
 if os.name == "nt":
@@ -44,12 +45,14 @@ class YoulessProtocol(basic.LineReceiver):
     '''
     This class handles the Youless protocol, i.e. the wire level stuff.
     '''
-    def __init__(self, wrapper):
-        self.wrapper = wrapper
+    def __init__(self, wrapper, log):
+        self._wrapper = wrapper
+        self._log = log
         self._devices = []
+        self._log.debug('Started Youless protocol')
            
     def read_device(self):
-	d = getPage("http://" + self.wrapper.addr +  "/a")
+	d = getPage("http://" + self._wrapper.addr +  "/a")
 	d.addCallback(self._handle_data)
             
     def _handle_data(self, line):
@@ -70,11 +73,11 @@ class YoulessProtocol(basic.LineReceiver):
              device = E_meter(node_id, type, subtype)
              self._devices.append(device)
 
-        log.msg("Received data from Youless e-meter; channel: %s, watt %s" % (node_id, watt))
+        self._log.debug("Received data from Youless e-meter; channel: %s, watt %s" % (node_id, watt))
                   
         values = {'Watt': str(watt)}
            
-        self.wrapper.pluginapi.value_update(node_id, values)         
+        self._wrapper.pluginapi.value_update(node_id, values)         
             
             
     def _device_exists(self, id, type):
@@ -112,6 +115,7 @@ class YoulessWrapper():
         self.broker_vhost = config.get("broker", "vhost")
         
         self.logging = config.getboolean('general', 'logging')
+        self.log = Logging('Youless')
         self.id = config.get('general', 'id')
                 
     def start(self):
@@ -122,12 +126,12 @@ class YoulessWrapper():
         callbacks = {'custom': self.cb_custom}
         
         self.pluginapi = pluginapi.PluginAPI(self.id, 'Youless', broker_host=self.broker_host, broker_port=self.broker_port, **callbacks)
-        self.protocol = YoulessProtocol(self)
+        self.protocol = YoulessProtocol(self, self.log)
         self.pluginapi.ready()
 
-	log.startLogging(open('/var/log/houseagent/youless.log','w'))
+#	log.startLogging(open('/var/log/houseagent/youless.log','w'))
 	
-	log.msg("Started Youless plugin")
+	self.log.debug("Youless plugin ready")
 
 
 	lc = LoopingCall(self.protocol.read_device)
